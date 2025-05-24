@@ -265,7 +265,7 @@ func populateChunkDownloader(
 			data.RowSet, data.Chunks)
 	}
 
-	return &snowflakeChunkDownloader{
+	downloader := &snowflakeChunkDownloader{
 		sc:                 sc,
 		ctx:                ctx,
 		pool:               getAllocator(ctx),
@@ -286,6 +286,13 @@ func populateChunkDownloader(
 			RowSetBase64: data.RowSetBase64,
 		},
 	}
+
+	// Check if chunk caching is enabled
+	if config, enabled := getChunkCacheConfig(ctx); enabled {
+		downloader.FuncDownloadHelper = downloadChunkHelperWithCache(config, downloadChunkHelper)
+	}
+
+	return downloader
 }
 
 func setupOCSPEnvVars(ctx context.Context, host string) error {
