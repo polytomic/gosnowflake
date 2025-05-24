@@ -111,6 +111,12 @@ func (scd *snowflakeChunkDownloader) start() error {
 	// start downloading chunks if exists
 	chunkMetaLen := len(scd.ChunkMetas)
 	if chunkMetaLen > 0 {
+		// Check if chunk caching is enabled and preload all chunks
+		if config, enabled := getChunkCacheConfig(scd.ctx); enabled {
+			if err := preloadAllChunks(scd.ctx, scd, config); err != nil {
+				logger.WithContext(scd.ctx).Warnf("Failed to preload chunks, falling back to on-demand download: %v", err)
+			}
+		}
 		chunkDownloadWorkers := defaultMaxChunkDownloadWorkers
 		chunkDownloadWorkersStr, ok := scd.sc.syncParams.get(clientPrefetchThreadsKey)
 		if ok {
