@@ -15,11 +15,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	DoNotExpire time.Duration = -1
+)
+
 // ChunkCacheConfig configures local chunk caching behavior
 type ChunkCacheConfig struct {
 	// CacheDir is the directory where chunks will be cached
 	CacheDir string
 	// MaxAge is the maximum age of cached chunks before they're considered stale
+	// If MaxAge <= 0, chunks will never be considered stale
 	MaxAge time.Duration
 	// Enabled controls whether caching is active
 	Enabled bool
@@ -43,7 +48,7 @@ func isCacheValid(filePath string, maxAge time.Duration) bool {
 	if err != nil {
 		return false
 	}
-	return time.Since(info.ModTime()) < maxAge
+	return maxAge <= 0 || time.Since(info.ModTime()) < maxAge
 }
 
 // ensureCacheDir creates the cache directory if it doesn't exist
@@ -118,7 +123,7 @@ func downloadChunkHelperWithCache(config ChunkCacheConfig, originalFunc func(con
 
 		// Try to load from cache first
 		if isCacheValid(cachePath, config.MaxAge) {
-			logger.WithContext(ctx).Debugf("Loading chunk %d from cache: %s", idx+1, cachePath)
+			logger.WithContext(ctx).Infof("Loading chunk %d from cache: %s", idx+1, cachePath)
 			if err := loadChunkFromCache(ctx, scd, idx, cachePath); err == nil {
 				return nil
 			} else {
@@ -127,7 +132,7 @@ func downloadChunkHelperWithCache(config ChunkCacheConfig, originalFunc func(con
 		}
 
 		// Fallback to original behavior (no caching)
-		logger.WithContext(ctx).Debugf("Using original download behavior for chunk %d", idx+1)
+		logger.WithContext(ctx).Infof("Using original download behavior for chunk %d", idx+1)
 		return originalFunc(ctx, scd, idx)
 	}
 }
