@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	sferrors "github.com/snowflakedb/gosnowflake/v2/internal/errors"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -89,7 +90,7 @@ func preloadAllChunks(ctx context.Context, scd *snowflakeChunkDownloader, config
 
 	// Set up concurrent download with error tracking using errgroup
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(MaxChunkDownloadWorkers)
+	g.SetLimit(defaultMaxChunkDownloadWorkers)
 
 	// Download all chunks that need downloading (raw bytes only, no decoding)
 	for i := range chunksToDownload {
@@ -183,7 +184,7 @@ func downloadRawChunkToCache(ctx context.Context, scd *snowflakeChunkDownloader,
 		return &SnowflakeError{
 			Number:      ErrFailedToGetChunk,
 			SQLState:    SQLStateConnectionFailure,
-			Message:     errMsgFailedToGetChunk,
+			Message:     sferrors.ErrMsgFailedToGetChunk,
 			MessageArgs: []any{idx},
 		}
 	}
