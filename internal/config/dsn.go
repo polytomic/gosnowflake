@@ -814,7 +814,6 @@ func parseParams(cfg *Config, posQuestion int, dsn string) (err error) {
 
 // parseDSNParams parses the DSN "query string". Values must be url.QueryEscape'ed
 func parseDSNParams(cfg *Config, params string) (err error) {
-	logger.Infof("Query String: %v\n", params)
 	paramsSlice := strings.SplitSeq(params, "&")
 	for v := range paramsSlice {
 		param := strings.SplitN(v, "=", 2)

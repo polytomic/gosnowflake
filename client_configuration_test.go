@@ -1,12 +1,15 @@
 package gosnowflake
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	sflogger "github.com/snowflakedb/gosnowflake/v2/internal/logger"
 )
 
 func TestFindConfigFileFromConnectionParameters(t *testing.T) {
@@ -362,4 +365,25 @@ func createClientConfigContent(logLevel string, logPath string) string {
 		logLevel,
 		strings.ReplaceAll(logPath, "\\", "\\\\"),
 	)
+}
+
+// This test changes the global driver logger and must not run in parallel.
+func TestClientConfigurationDoesNotLogUnknownValues(t *testing.T) {
+	originalLogger := sflogger.GetLogger()
+	assertNilF(t, sflogger.SetLogger(sflogger.CreateDefaultLogger()), "set logger")
+	t.Cleanup(func() { assertNilF(t, sflogger.SetLogger(originalLogger), "restore logger") })
+	assertNilF(t, sflogger.GetLogger().SetLogLevel("trace"), "enable all logs")
+	var output bytes.Buffer
+	sflogger.GetLogger().SetOutput(&output)
+	configPath := filepath.Join(t.TempDir(), "client.json")
+	const secret = "unrecognized-config-secret"
+	assertNilF(t, os.WriteFile(configPath, []byte(`{"common":{"log_level":"INFO","custom_secret":"`+secret+`"}}`), 0600), "write config")
+	_, err := parseClientConfiguration(configPath)
+	assertNilF(t, err, "parse client config")
+	if !strings.Contains(output.String(), "custom_secret") {
+		t.Fatal("expected unknown-key diagnostic")
+	}
+	if strings.Contains(output.String(), secret) {
+		t.Error("logs contain unknown configuration value")
+	}
 }

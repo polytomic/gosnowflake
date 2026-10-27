@@ -268,7 +268,7 @@ const (
 	ErrMsgClientConfigFailed                 = "client configuration failed: %v"
 	ErrMsgNullValueInArray                   = "for handling null values in arrays use WithArrayValuesNullable(ctx)"
 	ErrMsgNullValueInMap                     = "for handling null values in maps use WithMapValuesNullable(ctx)"
-	ErrMsgFailedToParseTomlFile              = "failed to parse toml file. the params %v occurred error with value %v"
+	ErrMsgFailedToParseTomlFile              = "failed to parse toml file parameter %v"
 	ErrMsgFailedToFindDSNInTomlFile          = "failed to find DSN in toml file."
 	ErrMsgInvalidWritablePermissionToFile    = "file '%v' is writable by group or others — this poses a security risk because it allows unauthorized users to modify sensitive settings. Your Permission: %v"
 	ErrMsgInvalidExecutablePermissionToFile  = "file '%v' is executable — this poses a security risk because the file could be misused as a script or executed unintentionally. Your Permission: %v"

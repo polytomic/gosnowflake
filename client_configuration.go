@@ -128,7 +128,7 @@ func parseClientConfiguration(filePath string) (*ClientConfig, error) {
 	unknownValues := getUnknownValues(fileContents)
 	if len(unknownValues) > 0 {
 		for val := range unknownValues {
-			logger.Warnf("Unknown configuration entry: %s with value: %s", val, unknownValues[val])
+			logger.Warnf("Unknown configuration entry: %s", val)
 		}
 	}
 	err = validateClientConfiguration(&clientConfig)

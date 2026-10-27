@@ -2558,3 +2558,63 @@ func TestSFOCSPDisableChecksEnvVar(t *testing.T) {
 		assertTrueE(t, strings.Contains(buf.String(), "fail-closed"), "log should mention fail-closed mode")
 	})
 }
+
+// This test changes the global driver logger and must not run in parallel.
+func TestParseDSNDoesNotLogCredentials(t *testing.T) {
+	originalLogger := sflogger.GetLogger()
+	assertNilF(t, sflogger.SetLogger(sflogger.CreateDefaultLogger()), "set logger")
+	t.Cleanup(func() { assertNilF(t, sflogger.SetLogger(originalLogger), "restore logger") })
+	assertNilF(t, sflogger.GetLogger().SetLogLevel("trace"), "enable all logs")
+	var output bytes.Buffer
+	sflogger.GetLogger().SetOutput(&output)
+	sflogger.GetLogger().Info("credential logging test")
+	if !strings.Contains(output.String(), "credential logging test") {
+		t.Fatal("driver log capture is not active")
+	}
+
+	key, err := rsa.GenerateKey(cr.Reader, 2048)
+	assertNilF(t, err, "generate private key")
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	assertNilF(t, err, "marshal private key")
+	privateKey := base64.URLEncoding.EncodeToString(der)
+	password := "p!"
+	token := "t?"
+	// Put the key first so password masking cannot accidentally hide it.
+	params := "authenticator=SNOWFLAKE_JWT&privateKey=" + url.QueryEscape(privateKey) +
+		"&custom_credential=unrecognized-dsn-secret&token=" + url.QueryEscape(token) + "&password=" + url.QueryEscape(password)
+	for _, invalid := range []bool{false, true} {
+		name := "valid"
+		suffix := ""
+		if invalid {
+			name = "invalid"
+			suffix = "&loginTimeout=invalid"
+		}
+		t.Run(name, func(t *testing.T) {
+			output.Reset()
+			cfg, err := ParseDSN("user:" + url.QueryEscape(password) + "@account/db?" + params + suffix)
+			if invalid {
+				if err == nil {
+					t.Fatal("expected parsing error")
+				}
+			} else {
+				assertNilF(t, err, "parse DSN")
+				if cfg.PrivateKey == nil {
+					t.Fatal("private key was not parsed")
+				}
+			}
+			for name, secret := range map[string]string{
+				"custom credential":   "unrecognized-dsn-secret",
+				"private key":         privateKey,
+				"escaped private key": url.QueryEscape(privateKey),
+				"password":            password,
+				"escaped password":    url.QueryEscape(password),
+				"token":               token,
+				"escaped token":       url.QueryEscape(token),
+			} {
+				if strings.Contains(output.String(), secret) {
+					t.Errorf("driver logs contain %s", name)
+				}
+			}
+		})
+	}
+}

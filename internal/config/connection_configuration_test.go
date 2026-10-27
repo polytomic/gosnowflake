@@ -611,3 +611,38 @@ func assertEqual[T comparable](t *testing.T, got, want T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
+
+// This test changes the global driver logger and must not run in parallel.
+func TestConnectionConfigurationDoesNotLogValues(t *testing.T) {
+	originalLogger := sflogger.GetLogger()
+	assertNilF(t, sflogger.SetLogger(sflogger.CreateDefaultLogger()), "set logger")
+	t.Cleanup(func() { assertNilF(t, sflogger.SetLogger(originalLogger), "restore logger") })
+	assertNilF(t, sflogger.GetLogger().SetLogLevel("trace"), "enable all logs")
+	var output bytes.Buffer
+	sflogger.GetLogger().SetOutput(&output)
+	for _, tc := range []struct {
+		key     string
+		value   any
+		invalid bool
+	}{
+		{"password", "p!", false},
+		{"token", "t?", false},
+		{"private_key", "invalid-private-key", true},
+		{"password", []string{"invalid-password-value"}, true},
+	} {
+		t.Run(tc.key+fmt.Sprint(tc.invalid), func(t *testing.T) {
+			output.Reset()
+			err := HandleSingleParam(&Config{Params: make(map[string]*string)}, tc.key, tc.value)
+			if (err != nil) != tc.invalid {
+				t.Fatalf("unexpected error status: %v", err != nil)
+			}
+			secret := fmt.Sprint(tc.value)
+			if strings.Contains(output.String(), secret) {
+				t.Error("logs contain configuration value")
+			}
+			if err != nil && strings.Contains(err.Error(), secret) {
+				t.Error("error contains configuration value")
+			}
+		})
+	}
+}

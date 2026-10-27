@@ -154,7 +154,7 @@ func HandleSingleParam(cfg *Config, key string, value any) error {
 	case "authenticator":
 		var v string
 		v, err = parseString(value)
-		if err = checkParsingError(err, key, value); err != nil {
+		if err = checkParsingError(err, key); err != nil {
 			return err
 		}
 		err = DetermineAuthenticatorType(cfg, v)
@@ -163,7 +163,7 @@ func HandleSingleParam(cfg *Config, key string, value any) error {
 	case "ocspfailopen":
 		var vv Bool
 		vv, err = parseConfigBool(value)
-		if err := checkParsingError(err, key, value); err != nil {
+		if err := checkParsingError(err, key); err != nil {
 			return err
 		}
 		cfg.OCSPFailOpen = OCSPFailOpenMode(vv)
@@ -172,7 +172,7 @@ func HandleSingleParam(cfg *Config, key string, value any) error {
 	case "privatekey":
 		var v string
 		v, err = parseString(value)
-		if err = checkParsingError(err, key, value); err != nil {
+		if err = checkParsingError(err, key); err != nil {
 			return err
 		}
 		block, decodeErr := base64.URLEncoding.DecodeString(v)
@@ -227,7 +227,7 @@ func HandleSingleParam(cfg *Config, key string, value any) error {
 		cfg.WorkloadIdentityImpersonationPath, err = parseStrings(value)
 	case "tokenfilepath":
 		cfg.TokenFilePath, err = parseString(value)
-		if err = checkParsingError(err, key, value); err != nil {
+		if err = checkParsingError(err, key); err != nil {
 			return err
 		}
 	case "connectiondiagnosticsenabled":
@@ -248,25 +248,24 @@ func HandleSingleParam(cfg *Config, key string, value any) error {
 		cfg.NoProxy, err = parseString(value)
 	default:
 		param, err := parseString(value)
-		if err = checkParsingError(err, key, value); err != nil {
+		if err = checkParsingError(err, key); err != nil {
 			return err
 		}
 		cfg.Params[urlDecodeIfNeeded(key)] = &param
 	}
-	return checkParsingError(err, key, value)
+	return checkParsingError(err, key)
 }
 
-func checkParsingError(err error, key string, value any) error {
+func checkParsingError(err error, key string) error {
 	if err != nil {
 		err = &sferrors.SnowflakeError{
 			Number:      sferrors.ErrCodeTomlFileParsingFailed,
 			Message:     sferrors.ErrMsgFailedToParseTomlFile,
-			MessageArgs: []any{key, value},
+			MessageArgs: []any{key},
 		}
-		logger.Errorf("Parsed key: %s, value: %v is not an option for the connection config", key, value)
+		logger.Errorf("Failed to parse connection config key: %s", key)
 		return err
 	}
-	logger.Warnf("Parsed key: %s, value: %v — cannot be parsed as string", key, value)
 	return nil
 }
 
